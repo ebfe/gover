@@ -3,6 +3,7 @@ package main
 import (
 	"debug/dwarf"
 	"debug/elf"
+	"debug/macho"
 	"debug/pe"
 	"encoding/binary"
 	"fmt"
@@ -25,6 +26,10 @@ func openBinary(name string) (Binary, error) {
 	p, err := pe.Open(name)
 	if err == nil {
 		return &peBinary{File: p}, nil
+	}
+	m, err := macho.Open(name)
+	if err == nil {
+		return &machoBinary{File: m}, nil
 	}
 	return nil, err
 }
@@ -88,6 +93,29 @@ func (p *peBinary) imageBase() uint64 {
 		return oh.ImageBase
 	}
 	panic("unknown pe format")
+}
+
+type machoBinary struct {
+	*macho.File
+}
+
+func (m *machoBinary) ReadAtVaddr(b []byte, vaddr uint64) (int, error) {
+	for _, s := range m.Sections {
+		if vaddr >= s.Addr && vaddr < s.Addr+s.Size {
+			return s.ReadAt(b, int64(vaddr-s.Addr))
+		}
+	}
+	return 0, fmt.Errorf("addr not mapped")
+}
+
+func (m *machoBinary) PtrSize() uint {
+	switch m.Cpu {
+	case macho.Cpu386, macho.CpuArm, macho.CpuPpc:
+		return 4
+	case macho.CpuAmd64, macho.CpuPpc64:
+		return 8
+	}
+	panic("unknown macho cpu")
 }
 
 type variable struct {
