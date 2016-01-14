@@ -22,20 +22,28 @@ func findSection(e *elf.File, addr uint64) *elf.Section {
 	return nil
 }
 
+func readBytes(e *elf.File, vaddr, len uint64) ([]byte, error) {
+	s := findSection(e, vaddr)
+	if s == nil {
+		return nil, fmt.Errorf("no section for addr")
+	}
+	val := make([]byte, len)
+	_, err := s.ReadAt(val, int64(vaddr-s.Addr))
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
 func readString(e *elf.File, v *variable) (string, error) {
 	if v.Type.String() != "struct string" {
 		return "", fmt.Errorf("wrong type %q", v.Type.String())
 	}
-	s := findSection(e, v.Addr)
-	if s == nil {
-		return "", fmt.Errorf("no section for addr")
-	}
-	val := make([]byte, v.Type.Size())
-	_, err := s.ReadAt(val, int64(v.Addr-s.Addr))
+
+	val, err := readBytes(e, v.Addr, uint64(v.Type.Size()))
 	if err != nil {
 		return "", err
 	}
-
 	sptr := uint64(0)
 	slen := uint64(0)
 	switch e.Class {
@@ -47,15 +55,11 @@ func readString(e *elf.File, v *variable) (string, error) {
 		slen = binary.LittleEndian.Uint64(val[8:])
 	}
 
-	s = findSection(e, sptr)
-	if s == nil {
-		return "", fmt.Errorf("no section for addr")
-	}
-	val = make([]byte, slen)
-	_, err = s.ReadAt(val, int64(sptr-s.Addr))
+	val, err = readBytes(e, sptr, slen)
 	if err != nil {
 		return "", err
 	}
+
 	return string(val), nil
 }
 
