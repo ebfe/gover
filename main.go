@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -19,19 +20,35 @@ type Binary interface {
 }
 
 func openBinary(name string) (Binary, error) {
-	e, err := elf.Open(name)
-	if err == nil {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	magic := make([]byte, 4)
+	if _, err := f.ReadAt(magic[:], 0); err != nil {
+		return nil, err
+	}
+
+	if bytes.HasPrefix(magic, []byte{0x7f, 'E', 'L', 'F'}) {
+		e, err := elf.NewFile(f)
+		if err != nil {
+			return nil, err
+		}
 		return &elfBinary{File: e}, nil
-	}
-	p, err := pe.Open(name)
-	if err == nil {
+	} else if bytes.HasPrefix(magic, []byte{'M', 'Z'}) {
+		p, err := pe.Open(name)
+		if err != nil {
+			return nil, err
+		}
 		return &peBinary{File: p}, nil
-	}
-	m, err := macho.Open(name)
-	if err == nil {
+	} else if bytes.HasPrefix(magic, []byte{0xcf, 0xfa, 0xed, 0xfe}) {
+		m, err := macho.Open(name)
+		if err != nil {
+			return nil, err
+		}
 		return &machoBinary{File: m}, nil
 	}
-	return nil, err
+	return nil, fmt.Errorf("unsupported binary format")
 }
 
 type elfBinary struct {
