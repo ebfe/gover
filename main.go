@@ -239,14 +239,24 @@ func findVersion(file string) (string, error) {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "usage: %s <file>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s files...\n", os.Args[0])
 		os.Exit(1)
 	}
 
-	ver, err := findVersion(os.Args[1])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "gover: %s\n", err)
-		os.Exit(1)
+	exit := 0
+	for _, f := range os.Args[1:] {
+		ver, err := findVersion(f)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gover: %s: %s\n", f, err)
+			exit = 1
+			continue
+		}
+		if len(os.Args) > 2 {
+			fmt.Printf("%s: %s\n", f, ver)
+		} else {
+			fmt.Println(ver)
+		}
 	}
-	fmt.Println(ver)
+
+	os.Exit(exit)
 }
