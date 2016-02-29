@@ -6,3 +6,7 @@ go:
         - 1.5
         - 1.6
         - tip
+
+script:
+        - go build
+        - if [ $(./gover ./gover) != "go${TRAVIS_GO_VERSION}" ]; then exit 1; fi
