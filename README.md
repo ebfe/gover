@@ -1,6 +1,8 @@
 gover
 =====
 
+DEPRECATED: use rsc.io/goversion
+
 Extract Go version out of Go binaries.
 
 ## Installation
